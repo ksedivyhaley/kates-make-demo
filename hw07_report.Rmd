@@ -1,0 +1,136 @@
+---
+title: "Homework 7 Report: Hair Trends in the Free Peoples"
+author: "Katharine Sedivy-Haley"
+date: "`r format(Sys.Date())`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+ 
+
+### Introduction
+
+Much has been made of the languid locks of the elves, the burly beards of the dwarves, and the furry feet of the halflings. Length and amount of hair can have both cultural and biological significance ([Pergament 1999](http://scholarship.kentlaw.iit.edu/cgi/viewcontent.cgi?article=3182&context=cklawreview), [Muscarella and Cunningham 1996](http://www.sciencedirect.com.ezproxy.library.ubc.ca/science/article/pii/0162309595001301)). However, as yet no studies have assessed the statistical validity behind common stereotypes. We here compare the amount of hair, relative to humans, possessed by elves, dwarves, and halflings in the head, beard, and body regions. 
+
+```{r cache=FALSE}
+#reads external code so I can run it in later chunks
+knitr::read_chunk('scatterplot.R')
+```
+
+
+```{r message=FALSE}
+library(tidyverse)
+library(stringr)
+library(knitr)
+
+#this function is useful for translating lists to plain text
+#c("x", "y") becomes "x and y"
+#c("x", "y", "z") becomes "x, y, and z"
+
+write_and <- function(x) {
+  if(length(x)<2) return(x)
+  if(length(x)==2) return(str_c(x[1], " and ", x[2], "."))
+  if(length(x)>2) {
+    return(str_c(paste(x[1:length(x)-1], collapse=", "), 
+                 ", and ", x[length(x)]))
+  }
+}
+
+# This is useful for getting the name (race and hair type) of a group
+# with an interesting characteristic based on its index/row number.
+
+write_name <- function(data, rnum){
+  paste0(data$Race[rnum], " ", data$Type[rnum])
+}
+
+original_data <- read_csv("data.csv")
+table1 <- kable(original_data)
+```
+
+### Methods
+
+We recruited `r nrow(original_data)` male volunteers from each of the Human, Elven, Dwarven, and Halfling races. Volunteers were weighed and then shaved, with hair being separately collected from the head, beard, and remainder of the body. The hair collected from each site was weighed and the percentage of the original body weight represented by each hair sample was calculated. Raw data is displayed in Table 1. 
+
+#### Table 1
+`r table1`
+
+Mean and standard deviation were determined and statistical analysis was performed using Student's T-Test with humans as the reference sample. Code used for this analysis can be found in the [supplemental materials online](https://github.com/STAT545-UBC/sedivy-haley_katharine/blob/master/hw07_Make/Analysis.R).
+
+Ethical permissions were obtained from the MEFPERB (Middle Earth Free Peoples Ethical Review Board).
+
+### Results & Discussion
+
+```{r message=FALSE}
+
+# I read in my analysed table here, as well as picking out some interesting
+# values to refer to in the text using `r variable_name` notation.
+
+analysed_data <- read_csv("analysed_data.csv", na=character()) 
+table2 <- analysed_data %>%
+  arrange(Type) %>%
+  kable(digits=3)
+
+best_pval <- which.min(analysed_data$p.value)
+best_pval_name <- write_name(analysed_data, best_pval)
+best_pval_diff <- round(analysed_data[[best_pval, "diff"]], 2)
+best_pval_pval <- round(analysed_data[[best_pval, "p.value"]], 3)
+
+sig_dec <- analysed_data %>%
+  filter(p.value <= 0.05 & diff<0) 
+nrow(sig_dec)
+
+# I note sig_dec is empty so I get the values for the biggest decrease
+
+biggest_dec <- which.min(analysed_data$diff)
+dec_name <- write_name(analysed_data, biggest_dec)
+dec_diff <- round(analysed_data[[biggest_dec, "diff"]], 2)
+dec_pval <- round(analysed_data[[biggest_dec, "p.value"]], 3)
+
+sig_inc <- analysed_data %>%
+  filter(p.value <= 0.05 & diff>0)
+nrow(sig_inc)
+
+# I note sig_inc is populated so I pull more info
+
+#grabs the name for each group in sig_inc and passes it to write_and()
+names_sig_inc <- write_and(sapply(seq(1, nrow(sig_inc)), 
+                                  function (i) write_name(sig_inc, i)))
+
+biggest_inc <- which.max(sig_inc$diff)
+inc_name <- write_name(sig_inc, biggest_inc)
+inc_diff <- round(sig_inc[[biggest_inc, "diff"]], 2)
+inc_pval <- round(sig_inc[[biggest_inc, "p.value"]], 3)
+```
+
+A statistically significant (p <= 0.05) increase in weight was found for `r names_sig_inc` hair. Of these, the biggest change was observed in `r inc_name` hair, with a change of `r inc_diff` % body weight from the human mean (p-value `r inc_pval`), confirming the popular conception. The most statistically significant change was observed in `r best_pval_name` hair, with a change of `r best_pval_diff` % body weight from the human mean (p-value `r best_pval_pval`). This change is likely due to the foot hair.
+
+The greatest decrease was observed in `r dec_name` hair, with a change of `r dec_diff` % body weight from the human mean. However, this was not found to be statistically significant, with a p-value of only `r dec_pval`. 
+
+This data is summarised in Table 2 and Figure 1.
+
+
+#### Table 2
+`r table2`
+
+![](barplot.png)
+
+The lack of statistically significant decreases in hair weight was surprising, since elves (and most halflings) are widely known to be incapable of growing beards, unlike humans and dwarves. However in Figure 1 we observe high standard deviations in beard height in particular, and examining the individual data points (Figure 2) we similarly note high variability between data points, with two human subjects notably being beardless. For our sample size of `r nrow(original_data)`, this variability likely obscured the known biological differences between elves and humans in the realm of facial hair.
+
+```{r scatterplot, message=FALSE}
+```
+
+### Conclusions
+
+Though significant increases were observed in `r names_sig_inc` hair weight, variation in hairiness obscured groups with sigificantly less hair in any regions. A larger sample size will be necessary for more statistical power. Additionally, more research is needed to disentangle the cultural and biological reasons for the results obtained. 
+
+## Reflections
+
+I essentially used the data analysis pipeline functions from [hw06](https://github.com/STAT545-UBC/sedivy-haley_katharine/blob/master/hw06_FunctionsNesting/hw06_FunctionsNesting.md) so that I could focus on Make, though I made some thematic changes to the data set analysed for entertainment purposes.
+
+I found additional sources that were helpful in implementing the pdf function using [LaTeX with Markdown](http://tech.lauritz.me/easy-latex-with-markdown-pandoc/) and [code externalization](http://zevross.com/blog/2014/07/09/making-use-of-external-r-code-in-knitr-and-r-markdown/).
+
+The LaTeX information was hardest to find, but once I located the above source it only required minor fiddling with the Makefile to make sure it could generate a .md if I didn't ask it to make report.html. I also notice that the pdf version removes the links and moves the figures around (presumably to fit on the page). I would like to see if I can explore the formatting a bit. 
+
+I did find it challenging to keep the list of dependencies straight in my head & updated, especially since the end report proved to be somewhat more complex than anticipated, drawing information from multiple stages of data analysis. If I were writing a real report I would probably want to simplify this.
